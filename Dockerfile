@@ -1,18 +1,16 @@
-FROM n8nio/n8n:latest
+FROM n8nio/n8n:latest-debian
 
 USER root
 
-# Install PDF tools + OCR (works on both Alpine and Debian-based images)
-RUN set -eux; \
-  if [ -f /etc/alpine-release ]; then \
-    apk add --no-cache poppler-utils tesseract-ocr tesseract-ocr-data-fra tesseract-ocr-data-eng; \
-  else \
-    apt-get update; \
-    apt-get install -y --no-install-recommends poppler-utils tesseract-ocr; \
-    rm -rf /var/lib/apt/lists/*; \
-  fi
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    poppler-utils \
+    tesseract-ocr \
+    tesseract-ocr-fra \
+    tesseract-ocr-eng \
+  && rm -rf /var/lib/apt/lists/*
 
-# Keep your existing Railway volume permissions logic
+# Ensure the n8n user folder exists and is writable (Railway volume will mount here)
 RUN mkdir -p /home/node/.n8n && chown -R node:node /home/node/.n8n
 
 COPY docker-entrypoint.sh /docker-entrypoint.sh
