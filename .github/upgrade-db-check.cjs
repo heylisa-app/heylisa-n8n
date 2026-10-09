@@ -41,4 +41,9 @@ async function main() {
     await client.end();
   }
 }
-main().catch(() => { console.error('FIXTURE_CHECK_FAIL_DETAILS_MASKED'); process.exitCode = 1; });
+main().catch((error) => {
+  const assertion = ['workflow', 'content', 'credential', 'execution'].includes(error.message) ? error.message : 'technical';
+  const code = /^[A-Z0-9_]+$/.test(error.code || '') ? error.code : 'masked';
+  console.error(JSON.stringify({ result: 'FIXTURE_CHECK_FAIL', assertion, code }));
+  process.exitCode = 1;
+});
