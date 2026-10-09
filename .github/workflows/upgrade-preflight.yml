@@ -1,0 +1,43 @@
+name: n8n upgrade preflight
+on:
+  push:
+    branches: [codex/n8n-upgrade-2-42-5]
+permissions:
+  contents: read
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build pinned production image
+        run: docker build -t n8n-upgrade-check .
+      - name: Check entrypoint runtime dependencies
+        run: |
+          docker run --rm --network none --entrypoint /bin/sh n8n-upgrade-check -c '
+            set -e
+            command -v su
+            test "$(su node -s /bin/sh -c "n8n --version")" = "2.42.5"
+          '
+      - name: Smoke actual entrypoint without production data or network
+        run: |
+          set -eu
+          docker run -d --name n8n-smoke --network none \
+            -e N8N_DIAGNOSTICS_ENABLED=false \
+            -e N8N_VERSION_NOTIFICATIONS_ENABLED=false \
+            -e N8N_ENCRYPTION_KEY=public-ci-fixture-not-a-production-secret \
+            n8n-upgrade-check
+          trap 'docker rm -f n8n-smoke >/dev/null 2>&1' EXIT
+          for attempt in $(seq 1 60); do
+            if docker exec n8n-smoke node -e 'fetch("http://127.0.0.1:5678/healthz/readiness").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))' 2>/dev/null; then
+              echo "ENTRYPOINT_READINESS_PASS"
+              exit 0
+            fi
+            if test "$(docker inspect --format '{{.State.Running}}' n8n-smoke)" != true; then
+              echo "ENTRYPOINT_EXITED_FAIL"
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "ENTRYPOINT_READINESS_TIMEOUT_FAIL"
+          exit 1
