@@ -32,7 +32,10 @@ async function main() {
       const executions = (await client.query('SELECT count(*) AS count FROM execution_entity WHERE "workflowId"=$1', [workflowId])).rows;
       if (workflow.length !== 1 || workflow[0].active || workflow[0].name !== 'CI inert fixture') throw new Error('workflow');
       if (JSON.stringify(workflow[0].nodes) !== '[]' || JSON.stringify(workflow[0].connections) !== '{}') throw new Error('content');
-      if (credentials.length !== 1 || JSON.parse(cipher.decrypt(credentials[0].data)).value !== 'public-fixture') throw new Error('credential');
+      // 2.42 uses decryptWithInstanceKey for the preserved legacy ciphertext.
+      const decryptLegacy = typeof cipher.decrypt === 'function'
+        ? cipher.decrypt.bind(cipher) : cipher.decryptWithInstanceKey.bind(cipher);
+      if (credentials.length !== 1 || JSON.parse(decryptLegacy(credentials[0].data)).value !== 'public-fixture') throw new Error('credential');
       if (executions[0].count !== '1') throw new Error('execution');
       await client.query('ROLLBACK');
       console.log('POSTGRES_2_42_5_MIGRATION_AND_PRESERVATION_PASS');
