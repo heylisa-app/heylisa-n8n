@@ -41,3 +41,38 @@ jobs:
           done
           echo "ENTRYPOINT_READINESS_TIMEOUT_FAIL"
           exit 1
+      - name: Verify PostgreSQL 17 upgrade and fixture preservation
+        run: |
+          set -eu
+          docker network create --internal n8n-upgrade-net
+          docker volume create n8n-upgrade-fixture
+          trap 'docker rm -f n8n-db-check n8n-pg-check >/dev/null 2>&1 || true; docker volume rm n8n-upgrade-fixture >/dev/null 2>&1 || true; docker network rm n8n-upgrade-net >/dev/null 2>&1 || true' EXIT
+          docker run -d --name n8n-pg-check --network n8n-upgrade-net \
+            -e POSTGRES_PASSWORD=public-ci-fixture -e POSTGRES_DB=n8n postgres:17
+          for attempt in $(seq 1 60); do
+            if docker exec n8n-pg-check pg_isready -U postgres -d n8n >/dev/null 2>&1; then break; fi
+            sleep 2
+          done
+          start_n8n() {
+            docker run -d --name n8n-db-check --network n8n-upgrade-net \
+              -v n8n-upgrade-fixture:/home/node/.n8n \
+              -e DB_TYPE=postgresdb -e DB_POSTGRESDB_HOST=n8n-pg-check \
+              -e DB_POSTGRESDB_DATABASE=n8n -e DB_POSTGRESDB_USER=postgres \
+              -e DB_POSTGRESDB_PASSWORD=public-ci-fixture \
+              -e N8N_ENCRYPTION_KEY=public-ci-fixture-not-a-production-secret \
+              -e N8N_DIAGNOSTICS_ENABLED=false -e N8N_VERSION_NOTIFICATIONS_ENABLED=false "$1"
+            for attempt in $(seq 1 90); do
+              if docker exec n8n-db-check node -e 'fetch("http://127.0.0.1:5678/healthz/readiness").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))' 2>/dev/null; then return 0; fi
+              if test "$(docker inspect --format '{{.State.Running}}' n8n-db-check)" != true; then echo DB_STARTUP_FAIL; return 1; fi
+              sleep 2
+            done
+            echo DB_READINESS_TIMEOUT_FAIL
+            return 1
+          }
+          start_n8n n8nio/n8n:2.8.4
+          docker cp .github/upgrade-db-check.cjs n8n-db-check:/tmp/upgrade-db-check.cjs
+          docker exec n8n-db-check node /tmp/upgrade-db-check.cjs seed
+          docker rm -f n8n-db-check >/dev/null
+          start_n8n n8n-upgrade-check
+          docker cp .github/upgrade-db-check.cjs n8n-db-check:/tmp/upgrade-db-check.cjs
+          docker exec n8n-db-check node /tmp/upgrade-db-check.cjs verify
