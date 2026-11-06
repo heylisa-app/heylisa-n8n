@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { classify, slackMessage } from './core.mjs';
+import { classify, classifyBatch, slackMessage } from './core.mjs';
 import { sendSlack } from './transport.mjs';
 const config = { projectId: 'p', channelId: 'C0CF5EEEB8V', confirmedTestInvoiceIds: [], confirmedTestProviderIds: [] };
 const log = { id: 'evt', timestamp: Date.now(), projectId: 'p', environment: 'production', level: 'error', requestId: 'r', deploymentId: 'dpl_x', path: '/api/billing/invoices/private-id/send', message: '{"event":"BILLING_SEND_FAILED","invoiceId":"invoice-1"}', statusCode: 200 };
@@ -10,6 +10,10 @@ test('credible Billing failures under HTTP 200 are P0 and do not leak identifier
   assert.equal(incident.severity, 'P0'); assert.equal(incident.route, '/api/billing/invoices/[id]/send');
   const serialized = JSON.stringify(slackMessage({ ...incident, occurrences: 1 }, config));
   assert.ok(!serialized.includes('private-id')); assert.ok(!serialized.includes('invoice-1'));
+});
+test('bootstrap summary links to real project logs rather than a synthetic event filter',()=>{
+  const m=slackMessage({code:'OPS01_EXISTING_CRITICAL_INCIDENTS',occurrences:1,impact:'historical'},config);
+  assert.match(m.text,/1 incident/);assert.ok(!m.text.includes('query=OPS01_'));
 });
 test('no event, expected client errors and intl noise are silent', () => {
   for (const status of [200, 401, 403, 404]) assert.deepEqual(classify({ ...log, message: '', level: 'info', statusCode: status }, config), []);
@@ -22,6 +26,12 @@ test('500 alone is P1; Preview is excluded', () => {
 test('server auth and Stripe webhook failures have explicit business impact', () => {
   for (const path of ['/api/auth/login','/api/stripe/webhook']) assert.equal(classify({ ...log, message:'',path,statusCode:500 },config)[0].severity,'P0');
   assert.deepEqual(classify({ ...log, message:'',path:'/api/stripe/webhook',statusCode:400,level:'info' },config),[]);
+});
+test('P0 plus its HTTP 5xx is one incident; another request remains independently alertable', () => {
+  const p0={...log,id:'business',requestId:'same'};
+  const technical={...log,id:'technical',requestId:'same',message:'',statusCode:503};
+  assert.equal(classifyBatch([p0,technical],config).length,1);
+  assert.equal(classifyBatch([p0,{...technical,requestId:'different'}],config).length,2);
 });
 test('test suppression requires explicit IDs; names never suffice', () => {
   assert.equal(classify({ ...log, message: '{"event":"BILLING_SEND_FAILED","name":"Brice Test"}' }, config)[0].severity, 'P0');

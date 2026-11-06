@@ -32,6 +32,9 @@ a fatal runtime log, or server 5xx on auth/Stripe webhook routes with explicit
 impact. Other 5xx/application errors are P1: five occurrences within fifteen
 minutes, across at least three distinct real request IDs. The historical rolling
 window is evaluated over the collected interval, not only the moment of the sweep.
+Within a batch, a structured P0 takes precedence over a generic P1 attached to
+the same exact deployment/request ID. Its HTTP failure is diagnostic context,
+not a second Slack incident. Other requests remain independently classifiable.
 Expected client 401/403/404 and next-intl ENVIRONMENT_FALLBACK are quiet unless a
 structured critical business code is present. Names containing "test" never
 exclude an account. Validated test-ID lists start empty.
@@ -100,6 +103,9 @@ deployment/health state; no additional external heartbeat is claimed active.
 6. Execute an actual Production dry-run, inspect classification/de-duplication and
    prove zero Slack calls. Select testSlack once, verify the single explicit test,
    then restore cycle. Changing the workflow operation does not grant generic shell.
+   For a CLI validation while the main n8n process runs, give only that temporary
+   CLI process `N8N_RUNNERS_BROKER_PORT=15679` and `N8N_RUNNERS_MODE=internal` to
+   avoid colliding with the existing task broker. Do not change the main broker.
 7. Switch `OPS01_MODE=live`, verify settled deployment, activate the hourly workflow
    and execute its first cycle. Verify durable watermark, historical consolidation,
    outbox, execution output and exact workflow active state.

@@ -41,3 +41,7 @@ test('unrecoverable saturation, excluded intervals, truncation and bounds fail',
 test('provider failure is never an empty success', async () => {
   await assert.rejects(collect({ projectId: 'p', start, end, run: async () => { throw Error('429'); } }), /429/);
 });
+test('the collection budget expires before the process watchdog can kill persistence', async () => {
+  let time=0;
+  await assert.rejects(collect({projectId:'p',start,end,clock:()=>{time+=100000;return time;},run:async()=>page([])}),/TIME_LIMIT/);
+});

@@ -84,15 +84,27 @@ export function classify(log, config, now = Date.now()) {
 }
 export function slackMessage(incident, config) {
   if (incident.code === 'OPS01_TEST') return { channel: config.channelId, text: '[TEST OPS-01] Validation technique de la sentinelle Backend Cleanyz. Aucun incident métier. Ce test autorisé est unique.', unfurl_links:false, unfurl_media:false };
+  if (incident.code === 'OPS01_EXISTING_CRITICAL_INCIDENTS') return {channel:config.channelId,
+    text:`🚨 P0 — Cleanyz | Incidents préexistants\n${incident.occurrences} incident(s) critique(s) consolidé(s) au démarrage.\nImpact : ${incident.impact}\nDiagnostic : https://vercel.com/heylisa-apps-projects/bnb-cleaning-planner/logs`,unfurl_links:false,unfurl_media:false};
   const diagnostic = `https://vercel.com/heylisa-apps-projects/bnb-cleaning-planner/logs?query=${encodeURIComponent(incident.request_id || incident.code)}`;
   return { channel: config.channelId, unfurl_links: false, unfurl_media: false,
     text: `🚨 ${incident.severity} — Cleanyz | ${incident.domain}\nIncident : ${incident.code}\nImpact : ${incident.impact}\nOccurrences : ${incident.occurrences} depuis ${incident.first_seen}\nRoute : ${incident.route}\nDéploiement : ${incident.deployment || 'indisponible'}\nDernière erreur : ${incident.code}\nRequête : ${incident.request_id || 'indisponible'}\nDiagnostic : ${diagnostic}` };
 }
 
+export function classifyBatch(logs, config, now = Date.now()) {
+  const events = logs.flatMap(log => classify(log, config, now));
+  const requestKey = event => `${event.deployment}:${event.request_id}`;
+  const criticalRequests = new Set(events.filter(event => event.severity==='P0' && event.request_id).map(requestKey));
+  // The request's 5xx is diagnostic context for its structured P0, not a second incident.
+  return events.filter(event => event.severity!=='P1' || !event.request_id || !criticalRequests.has(requestKey(event)));
+}
+
 export function createMonitor({ rpc, config, mode = 'dry-run', send, clock = Date.now }) {
   async function deliver({ onlyMonitor = false, onlyTest = false } = {}) {
     const previews = [];
+    const deadline = Date.now()+60000;
     for (let i = 0; i < 50; i++) {
+      if (Date.now()+40000>deadline) break;
       const item = await rpc('claim', { mode, only_monitor: onlyMonitor, only_test: onlyTest });
       if (!item) break;
       const message = slackMessage(item.incident, config);
@@ -111,7 +123,7 @@ export function createMonitor({ rpc, config, mode = 'dry-run', send, clock = Dat
   }
   return {
     async ingest(logs) {
-      const events = logs.flatMap(log => classify(log, config, clock()));
+      const events = classifyBatch(logs, config, clock());
       await rpc('ingest', { mode, events });
       return deliver(); // P0 queued atomically with ingestion, sent in the same invocation.
     },

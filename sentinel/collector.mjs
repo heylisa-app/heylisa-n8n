@@ -27,14 +27,16 @@ export function normalize({ type, data }, projectId) {
     deploymentId: data.deploymentId, path: data.route ?? data.requestPath,
     level: type === 'request' ? 'error' : data.level, message: data.message ?? '', statusCode: data.httpStatus };
 }
-export async function collect({ projectId, start, end, run, limit = 1000, maxCalls = 120 }) {
+export async function collect({ projectId, start, end, run, limit = 1000, maxCalls = 120, clock = Date.now }) {
   if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end || end - start > 23 * 3600000) throw Error('COVERAGE_GAP');
   const unique = new Map(); let calls = 0;
+  const deadline = clock()+180000;
   for (const [source, query] of queries) {
     const pending = [[start, end]];
     while (pending.length) {
       const [from, to] = pending.pop();
       if (++calls > maxCalls) throw Error('COLLECTION_LIMIT_REACHED');
+      if (clock()+30000>deadline) throw Error('COLLECTION_TIME_LIMIT');
       const args = ['logs', source, '--project', projectId, '--scope', 'heylisa-apps-projects',
         '--environment', 'production', '--query', query, '--since', new Date(from).toISOString(),
         '--until', new Date(to).toISOString(), '--limit', String(limit), '--json'];

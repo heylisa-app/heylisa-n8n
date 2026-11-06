@@ -22,7 +22,7 @@ class Ops01Sentinel {
       OPS01_SUPABASE_URL: supabase.host, OPS01_SUPABASE_KEY: supabase.serviceRole,
       OPS01_SLACK_TOKEN: slack.accessToken };
     try {
-      const { stdout } = await exec('/opt/ops01-node/bin/node', ['/opt/ops01/runner.mjs'], { env, timeout: 300000, maxBuffer: 1024 * 1024 });
+      const { stdout } = await exec('/opt/ops01-node/bin/node', ['/opt/ops01/runner.mjs'], { env, timeout: 330000, maxBuffer: 1024 * 1024 });
       const result = JSON.parse(stdout);
       // Diagnostics are returned to the node output. No raw logs or child stderr.
       return [[{ json: result }]];
