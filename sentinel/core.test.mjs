@@ -28,7 +28,10 @@ test('500 alone is P1; Preview is excluded', () => {
   assert.deepEqual(classify({ ...log, environment: 'preview' }, config), []);
 });
 test('server auth and Stripe webhook failures have explicit business impact', () => {
-  for (const path of ['/api/auth/login','/api/stripe/webhook']) assert.equal(classify({ ...log, message:'',path,statusCode:500 },config)[0].severity,'P0');
+  for (const path of ['/api/auth/login','/api/stripe/webhook','/api/providers/signup','/api/hosts/signup',
+    '/api/mobile/v1/auth/provider/team-login/verify','/api/mobile/v1/auth/client/handoff/redeem',
+    '/api/mobile/v1/auth/provider/pro-v2/signup-intents/resolve']) assert.equal(classify({ ...log, message:'',path,statusCode:500 },config)[0].severity,'P0');
+  assert.equal(classify({...log,message:'',path:'/api/mobile/v1/auth/provider/pro-v2/academy/checkpoint',statusCode:500},config)[0].severity,'P1');
   assert.deepEqual(classify({ ...log, message:'',path:'/api/stripe/webhook',statusCode:400,level:'info' },config),[]);
 });
 test('P0 plus its HTTP 5xx is one incident; another request remains independently alertable', () => {

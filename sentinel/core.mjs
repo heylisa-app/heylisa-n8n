@@ -33,8 +33,16 @@ const routes = [
   /^\/api\/billing\/invoices\/[^/]+\/send$/,
   /^\/api\/(auth|mobile\/v1\/(provider|client))\/[a-z/-]+$/,
 ];
+// Concrete critical entrypoints verified against the owning Backend route tree.
+// Academy checkpoint writes are deliberately left to the normal P1 threshold.
+const signupRoutes = new Set(['/api/providers/signup','/api/hosts/signup',
+  '/api/mobile/v1/auth/provider/pro-v2/signup-intents','/api/mobile/v1/auth/provider/pro-v2/signup-intents/resolve']);
+const authRoutes = new Set(['/api/auth/send-email-hook','/api/admin-v2/auth/login','/api/admin-v2/auth/recovery','/api/admin-v2/auth/password',
+  '/api/mobile/v1/auth/review-otp','/api/mobile/v1/auth/client/handoff/redeem','/api/mobile/v1/auth/provider/handoff/redeem',
+  '/api/mobile/v1/auth/provider/team-login/request','/api/mobile/v1/auth/provider/team-login/verify']);
 export function safeRoute(raw) {
   const path = typeof raw === 'string' ? raw.split('?')[0] : '';
+  if (signupRoutes.has(path)||authRoutes.has(path)) return path;
   if (!routes.some(rule => rule.test(path))) return '/[redacted]';
   return path.replace(/(\/invoices\/)\S+(\/send)/, '$1[id]$2');
 }
@@ -57,7 +65,8 @@ export function classify(log, config, now = Date.now()) {
   if (!codes.length && /\bENVIRONMENT_FALLBACK\b/.test(message)) return [];
   const status = Number(log.statusCode ?? log.proxy?.statusCode);
   const rawPath = typeof log.path === 'string' ? log.path.split('?')[0] : '';
-  if (status >= 500 && status <= 599 && /^\/api\/(?:auth\/|mobile\/v1\/(?:provider|client)\/auth\/)/.test(rawPath)) codes.push('AUTH_SERVER_FAILED');
+  if (status >= 500 && status <= 599 && (authRoutes.has(rawPath)||/^\/api\/(?:auth\/|mobile\/v1\/(?:provider|client)\/auth\/)/.test(rawPath))) codes.push('AUTH_SERVER_FAILED');
+  if (status >= 500 && status <= 599 && signupRoutes.has(rawPath)) codes.push('SIGNUP_SERVER_FAILED');
   if (status >= 500 && status <= 599 && rawPath === '/api/stripe/webhook') codes.push('STRIPE_WEBHOOK_SERVER_FAILED');
   if (!codes.length && ![500, 502, 503, 504].includes(status) && log.level !== 'error' && log.level !== 'fatal') return [];
   if (!codes.length && [401, 403, 404].includes(status)) return [];
