@@ -1,0 +1,10 @@
+{
+  "projectId": "prj_FTT6fSIRVXoVUZaK6l7Z9MaGXmI1",
+  "channelId": "C0CF5EEEB8V",
+  "p1Count": 5,
+  "p1Requests": 3,
+  "windowMinutes": 15,
+  "confirmedTestInvoiceIds": [],
+  "confirmedTestProviderIds": [],
+  "dailyReminders": false
+}

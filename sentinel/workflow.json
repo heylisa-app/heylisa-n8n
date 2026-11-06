@@ -1,0 +1,26 @@
+{
+  "name": "OPS-01 — Cleanyz Backend Production Sentinel",
+  "active": false,
+  "nodes": [
+    { "id": "hourly", "name": "Every hour UTC", "type": "n8n-nodes-base.scheduleTrigger", "typeVersion": 1.2,
+      "position": [0, 0], "parameters": { "rule": { "interval": [{ "field": "cronExpression", "expression": "0 * * * *" }] } } },
+    { "id": "manual", "name": "Manual validation", "type": "n8n-nodes-base.manualTrigger", "typeVersion": 1,
+      "position": [0, 200], "parameters": {} },
+    { "id": "collect", "name": "OPS-01 Production cycle", "type": "CUSTOM.ops01Sentinel", "typeVersion": 1,
+      "position": [260, 0], "parameters": {} },
+    { "id": "diagnostics", "name": "Diagnostics in output", "type": "n8n-nodes-base.code", "typeVersion": 2,
+      "position": [520, 0], "parameters": { "jsCode": "return $input.all().map(item => ({json: {status: item.json.status, diagnostics: item.json.diagnostics, previews: item.json.previews ?? []}}));" } },
+    { "id": "failed", "name": "Collection failed", "type": "n8n-nodes-base.if", "typeVersion": 2.2,
+      "position": [780, 0], "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }, "conditions": [{ "id": "failure", "leftValue": "={{ $json.status }}", "rightValue": "FAILED", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" } } },
+    { "id": "stop", "name": "Pipeline failure visible", "type": "n8n-nodes-base.stopAndError", "typeVersion": 1,
+      "position": [1040, -100], "parameters": { "errorMessage": "={{ $json.diagnostics.code || 'OPS01_PIPELINE_FAILED' }}" } }
+  ],
+  "connections": {
+    "Every hour UTC": { "main": [[{ "node": "OPS-01 Production cycle", "type": "main", "index": 0 }]] },
+    "Manual validation": { "main": [[{ "node": "OPS-01 Production cycle", "type": "main", "index": 0 }]] },
+    "OPS-01 Production cycle": { "main": [[{ "node": "Diagnostics in output", "type": "main", "index": 0 }]] },
+    "Diagnostics in output": { "main": [[{ "node": "Collection failed", "type": "main", "index": 0 }]] },
+    "Collection failed": { "main": [[{ "node": "Pipeline failure visible", "type": "main", "index": 0 }], []] }
+  },
+  "settings": { "timezone": "UTC", "executionTimeout": 360, "saveDataErrorExecution": "all", "saveDataSuccessExecution": "all", "saveManualExecutions": true, "executionOrder": "v1" }
+}

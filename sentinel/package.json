@@ -1,0 +1,10 @@
+{
+  "name": "cleanyz-ops01-collector",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": { "test": "node --test *.test.mjs" },
+  "optionalDependencies": {
+    "@vercel/vc-native-linux-arm64-musl": "65.12.1",
+    "@vercel/vc-native-linux-x64-musl": "65.12.1"
+  }
+}
