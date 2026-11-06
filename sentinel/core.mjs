@@ -83,6 +83,7 @@ export function classify(log, config, now = Date.now()) {
       const routeKey = route === '/[redacted]' ? hash(rawPath.replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/gi,'[id]')) : route;
       const signature = hash([code, routeKey, subject].join('|'));
       result.push({ event_id: `${log.id}:${signature}`, occurred_at: new Date(log.timestamp).toISOString(),
+        project_id: config.projectId, environment: 'production',
         signature, code, route, severity: test ? 'DIAGNOSTIC' : severity,
         deployment: identifier(log.deploymentId), request_id: identifier(log.requestId),
         domain: critical[code]?.[0] ?? 'Backend', impact: critical[code]?.[1] ?? 'Erreur serveur ; parcours à vérifier',

@@ -8,6 +8,7 @@ const log = { id: 'evt', timestamp: Date.now(), projectId: 'p', environment: 'pr
 test('credible Billing failures under HTTP 200 are P0 and do not leak identifiers', () => {
   const [incident] = classify(log, config);
   assert.equal(incident.severity, 'P0'); assert.equal(incident.route, '/api/billing/invoices/[id]/send');
+  assert.equal(incident.project_id,config.projectId);assert.equal(incident.environment,'production');
   const serialized = JSON.stringify(slackMessage({ ...incident, occurrences: 1 }, config));
   assert.ok(!serialized.includes('private-id')); assert.ok(!serialized.includes('invoice-1'));
 });
