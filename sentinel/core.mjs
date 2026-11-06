@@ -84,6 +84,8 @@ export function classify(log, config, now = Date.now()) {
 }
 export function slackMessage(incident, config) {
   if (incident.code === 'OPS01_TEST') return { channel: config.channelId, text: '[TEST OPS-01] Validation technique de la sentinelle Backend Cleanyz. Aucun incident métier. Ce test autorisé est unique.', unfurl_links:false, unfurl_media:false };
+  if (incident.code === 'OPS01_MONITOR_FAILED') return {channel:config.channelId,
+    text:`🚨 P0 — Cleanyz | Surveillance\nIncident : collecte en échec au moins trois fois consécutives.\nImpact : couverture des erreurs Production non certifiée.\nDiagnostic : ${config.monitorUrl??'https://n8n.cleanyz.io'}`,unfurl_links:false,unfurl_media:false};
   if (incident.code === 'OPS01_EXISTING_CRITICAL_INCIDENTS') return {channel:config.channelId,
     text:`🚨 P0 — Cleanyz | Incidents préexistants\n${incident.occurrences} incident(s) critique(s) consolidé(s) au démarrage.\nImpact : ${incident.impact}\nDiagnostic : https://vercel.com/heylisa-apps-projects/bnb-cleaning-planner/logs`,unfurl_links:false,unfurl_media:false};
   const diagnostic = `https://vercel.com/heylisa-apps-projects/bnb-cleaning-planner/logs?query=${encodeURIComponent(incident.request_id || incident.code)}`;

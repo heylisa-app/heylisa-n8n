@@ -15,6 +15,10 @@ test('bootstrap summary links to real project logs rather than a synthetic event
   const m=slackMessage({code:'OPS01_EXISTING_CRITICAL_INCIDENTS',occurrences:1,impact:'historical'},config);
   assert.match(m.text,/1 incident/);assert.ok(!m.text.includes('query=OPS01_'));
 });
+test('pipeline failures link to n8n rather than a nonexistent Vercel event',()=>{
+  const m=slackMessage({code:'OPS01_MONITOR_FAILED'},{...config,monitorUrl:'https://n8n.cleanyz.io/workflow/approved'});
+  assert.match(m.text,/n8n.cleanyz.io\/workflow\/approved/);assert.ok(!m.text.includes('vercel.com'));
+});
 test('no event, expected client errors and intl noise are silent', () => {
   for (const status of [200, 401, 403, 404]) assert.deepEqual(classify({ ...log, message: '', level: 'info', statusCode: status }, config), []);
   assert.deepEqual(classify({ ...log, message: 'ENVIRONMENT_FALLBACK' }, config), []);

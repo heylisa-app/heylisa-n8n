@@ -7,6 +7,7 @@ import { createMonitor } from './core.mjs';
 // This process never reads .env files or writes credentials to disk.
 const config = JSON.parse(readFileSync(new URL('./config.json', import.meta.url), 'utf8'));
 const env = process.env;
+config.monitorUrl = env.OPS01_WORKFLOW_ID ? `https://n8n.cleanyz.io/workflow/${encodeURIComponent(env.OPS01_WORKFLOW_ID)}` : 'https://n8n.cleanyz.io';
 const mode = env.OPS01_MODE ?? 'dry-run';
 try {
   if (!['dry-run', 'live'].includes(mode)) throw Error('INVALID_MODE');

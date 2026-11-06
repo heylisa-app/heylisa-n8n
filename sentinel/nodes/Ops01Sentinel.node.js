@@ -17,7 +17,7 @@ class Ops01Sentinel {
     const supabase = await this.getCredentials('supabaseApi');
     const operation = this.getNodeParameter('operation',0,'cycle');
     if (!['cycle','testSlack'].includes(operation)) throw Error('INVALID_OPERATION');
-    const env = { PATH: '/opt/ops01-node/bin:/usr/local/bin:/usr/bin:/bin', OPS01_MODE: process.env.OPS01_MODE ?? 'dry-run', OPS01_OPERATION:operation,
+    const env = { PATH: '/opt/ops01-node/bin:/usr/local/bin:/usr/bin:/bin', OPS01_MODE: process.env.OPS01_MODE ?? 'dry-run', OPS01_OPERATION:operation, OPS01_WORKFLOW_ID:process.env.OPS01_WORKFLOW_ID,
       OPS01_VERCEL_TOKEN: process.env.OPS01_VERCEL_TOKEN,
       OPS01_SUPABASE_URL: supabase.host, OPS01_SUPABASE_KEY: supabase.serviceRole,
       OPS01_SLACK_TOKEN: slack.accessToken };
